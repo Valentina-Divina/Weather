@@ -5,4 +5,5 @@
 
 
 - Based on OpenWeatherApi
+- Current Geolocation recognition
 - TBD

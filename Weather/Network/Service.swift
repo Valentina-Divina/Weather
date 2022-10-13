@@ -32,4 +32,26 @@ class Service {
             }
         }
     }
+    
+    func loadWeatherCityByCoords(lat: Double, long: Double, completion: @escaping (Today) -> ()) {
+        let path = "data/2.5/weather"
+        let parameters = [
+            "lat": String(lat),
+            "lon": String(long),
+            "units": "metric",
+            "appid": apiKey,
+            "lang": "ru"
+        ]
+        let url = baseUrl + path
+        AF.request(url, method: .get, parameters: parameters).responseJSON { response in
+            print(response)
+            guard let json = response.data else { return }
+            do {
+                let weather = try JSONDecoder().decode(Today.self, from: json)
+                completion(weather)
+            } catch {
+                print(error)
+            }
+        }
+    }
 }

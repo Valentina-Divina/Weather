@@ -7,11 +7,13 @@
 
 import UIKit
 import SnapKit
+import CoreLocation
 
 class ViewController: UIViewController {
     
     let service = Service()
     let serviceDaily = ServiceDaily()
+    let locationManager = CLLocationManager()
     let timezone = UILabel(frame: CGRect(x: 0, y: 0, width: 0, height: 0))
     let country = UILabel(frame: CGRect(x: 0, y: 0, width: 0, height: 0))
     let weatherDescription = UILabel(frame: CGRect(x: 0, y: 0, width: 0, height: 0))
@@ -29,6 +31,16 @@ class ViewController: UIViewController {
         didSet {
             tableView.reloadData()
         }
+    }
+    
+    func updateCityBlock(today: Today) {
+        self.timezone.text = today.name
+        self.country.text = today.sys.country
+        self.tempView.temp.text = String(Int(today.main.temp))
+        self.weatherDescription.text = today.weather[0].weatherDescription
+        self.humidityView.humidity.text = String(today.main.humidity) + "%"
+        self.windSpeedView.windSpeed.text = String(Int(today.wind.speed)) + " " + "м/с"
+        self.pressureView.pressure.text = String(today.main.pressure) + "%"
     }
     
     override func viewDidLoad() {
@@ -57,6 +69,7 @@ class ViewController: UIViewController {
         constraints()
         getWeather()
         getDailyWeather()
+        setupLocation()
     }
     
     func assignbackground(){
@@ -84,9 +97,30 @@ class ViewController: UIViewController {
         
         self.view.addSubview(targetLabel)
     }
+    // MARK: - setupLocation
+    private func setupLocation (){
+        locationManager.delegate = self
+        checkAuth()
+    }
+    
+    // MARK: - check authentication
+    private func checkAuth() {
+        switch locationManager.authorizationStatus {
+        case .notDetermined:
+            locationManager.requestWhenInUseAuthorization()
+        case .restricted:
+            break
+        case .denied:
+            break
+        case .authorizedAlways, .authorizedWhenInUse: 
+            locationManager.startUpdatingLocation()
+        @unknown default:
+            print("check authentication error")
+        }
+    }
     
     // MARK: - timezoneConstraints
-    func timezoneConstraints() {
+    private func timezoneConstraints() {
         initLabel(targetLabel: timezone, text: "Шумерля", font: UIFont(name: "Helvetica", size: 22),center: self.view.center)
         timezone.snp.makeConstraints { maker in
             maker.centerX.equalToSuperview()
@@ -94,7 +128,7 @@ class ViewController: UIViewController {
         }
     }
     //MARK: - createCountryConstraints
-    func createCountryConstraints() {
+    private func createCountryConstraints() {
         initLabel(targetLabel: country, text: "Россия", font: UIFont(name: "Helvetica", size: 15), center: self.view.center)
         country.snp.makeConstraints { maker in
             maker.centerX.equalToSuperview()
@@ -102,7 +136,7 @@ class ViewController: UIViewController {
         }
     }
     // MARK: - weatherDescriptionConstraints
-    func weatherDescriptionConstraints() {
+    private func weatherDescriptionConstraints() {
         initLabel(targetLabel: weatherDescription, text: "Чистое небо", font: UIFont(name: "Helvetica", size: 23), center: self.view.center)
         weatherDescription.snp.makeConstraints { maker in
             maker.centerX.equalToSuperview()
@@ -112,7 +146,7 @@ class ViewController: UIViewController {
     
     // MARK: - tempConstraints
     
-    func tempConstraints() {
+    private func tempConstraints() {
         tempView.snp.makeConstraints { maker in
             maker.centerX.equalToSuperview()
             maker.top.equalTo(weatherDescription).inset(40)
@@ -121,7 +155,7 @@ class ViewController: UIViewController {
     
     // MARK: - humidityConstraints
     
-    func humidityConstraints() {
+    private func humidityConstraints() {
         humidityView.snp.makeConstraints { maker in
             maker.top.equalTo(tempView).inset(130)
             maker.left.equalToSuperview().inset(90)
@@ -130,7 +164,7 @@ class ViewController: UIViewController {
     
     // MARK: - windSpeedViewConstraints
     
-    func windSpeedConstraints() {
+    private func windSpeedConstraints() {
         windSpeedView.snp.makeConstraints { maker in
             maker.top.equalTo(tempView).inset(130)
             maker.centerX.equalToSuperview()
@@ -138,7 +172,7 @@ class ViewController: UIViewController {
     }
     // MARK: - windSpeedViewConstraints
     
-    func pressureConstraints() {
+    private func pressureConstraints() {
         pressureView.snp.makeConstraints { maker in
             maker.top.equalTo(tempView).inset(130)
             maker.right.equalToSuperview().inset(90)
@@ -147,39 +181,39 @@ class ViewController: UIViewController {
     
     // MARK: - get weather
     private func getWeather() {
-        service.loadWeatherCity(city: "Moscow", completion: { [weak self] today in
-            self?.timezone.text = today.name
-            self?.country.text = today.sys.country
-            self?.tempView.temp.text = String(Int(today.main.temp))
-            self?.weatherDescription.text = today.weather[0].weatherDescription
-            self?.humidityView.humidity.text = String(today.main.humidity) + "%"
-            self?.windSpeedView.windSpeed.text = String(Int(today.wind.speed)) + " " + "м/с"
-            self?.pressureView.pressure.text = String(today.main.pressure) + "%"
+        service.loadWeatherCity(city: "Berlin", completion: { [weak self] today in
+            self?.updateCityBlock(today: today)
         })
     }
     
     private func getDailyWeather() {
+        
+        
+        serviceDaily.loadWeatherCity(city: "Berlin", completion: {[weak self] daily in
+            self?.updateDailyWeatherList(daily: daily)
+        })
+    }
+    
+    private func updateDailyWeatherList(daily: Daily) {
         var dayToDrop = ""
         
-        serviceDaily.loadWeatherCity(city: "London", completion: {[weak self] daily in
-            let convertedDays: [Day] = daily.dailyList.map({ daily in
-                let convertedDay = daily.dtTxt.convertToDate()
-                return Day(
-                    minTemp: String(daily.main.tempMin),
-                    maxTemp: String(daily.main.tempMax),
-                    dayName: convertedDay?.short ?? "",
-                    partOfUrl: daily.weather[0].icon
-                )
-            })
-            
-            self?.dayliData = convertedDays.filter({ item in
-                if item.dayName == dayToDrop {
-                    return false
-                } else {
-                    dayToDrop = item.dayName
-                    return true
-                }
-            })
+        let convertedDays: [Day] = daily.dailyList.map({ daily in
+            let convertedDay = daily.dtTxt.convertToDate()
+            return Day(
+                minTemp: String(daily.main.tempMin),
+                maxTemp: String(daily.main.tempMax),
+                dayName: convertedDay?.short ?? "",
+                partOfUrl: daily.weather[0].icon
+            )
+        })
+        
+        self.dayliData = convertedDays.filter({ item in
+            if item.dayName == dayToDrop {
+                return false
+            } else {
+                dayToDrop = item.dayName
+                return true
+            }
         })
     }
 }
@@ -233,3 +267,41 @@ struct Day {
     let partOfUrl: String
 }
 
+
+extension ViewController: CLLocationManagerDelegate {
+    
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        let coords = manager.location?.coordinate
+        
+        service.loadWeatherCityByCoords(
+            lat: coords?.latitude ?? 0.0,
+            long: coords?.longitude ?? 0.0,
+            completion: { [weak self] today in
+                self?.updateCityBlock(today: today)
+            })
+        
+        serviceDaily.loadWeatherCityByCoords(
+            lat: coords?.latitude ?? 0.0,
+            long: coords?.longitude ?? 0.0,
+            completion: { [weak self] daily in
+                self?.updateDailyWeatherList(daily: daily)
+            })
+    }
+    
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        switch manager.authorizationStatus {
+        case .notDetermined: // нет разрешения и можно его попросить (первый заход)
+            manager.requestWhenInUseAuthorization()
+        case .restricted: // ограничено
+            break // добавить потом alert и обработать эти ошибки
+        case .denied: // отключен
+            break
+        case .authorizedAlways, .authorizedWhenInUse: // всегда разрешено отслеживать и разрешено при использовании приложения
+            manager.startUpdatingLocation()
+            
+        @unknown default:
+            print("check authentication error")
+        }
+    }
+    
+}

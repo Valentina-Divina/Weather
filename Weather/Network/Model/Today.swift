@@ -1,7 +1,7 @@
 import UIKit
 
 class Today: Decodable {
-    let name: String
+    let name: String?
     let wind: WindToday
     let weather: [WeatherToday]
     let sys: SysToday
@@ -36,7 +36,7 @@ class MainToday: Decodable {
 
 // MARK: - Sys
 class SysToday: Decodable {
-    let country: String
+    let country: String?
     
     init(type: Int, id: Int, country: String, sunrise: Int, sunset: Int) {
         self.country = country
